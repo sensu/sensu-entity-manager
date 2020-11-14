@@ -19,35 +19,36 @@ import (
 // Config represents the handler plugin config.
 type Config struct {
 	sensu.PluginConfig
-	AuthHeader string
-	ApiUrl string
-	ApiKey string
-	AccessToken string
-	TrustedCaFile string
-	Labels map[string]string
-	Annotations map[string]string
-	Subscriptions string
+	AuthHeader       string
+	ApiUrl           string
+	ApiKey           string
+	AccessToken      string
+	TrustedCaFile    string
+	Labels           map[string]string
+	Annotations      map[string]string
+	Subscriptions    []string
+	AddSubscriptions bool
 }
 
-// EntitySubscriptions is a partial Entity definition for use with the 
+// EntitySubscriptions is a partial Entity definition for use with the
 // PATCH /entities API
 type Deregistration struct {
 	Handler string `json:"handler"`
 }
 
-// EntityPatch is a shell of an Entity object for use with the 
+// EntityPatch is a shell of an Entity object for use with the
 // PATCH /entities API
 type EntityPatch struct {
-	Labels map[string]string `json:"labels,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
-	CreatedBy string `json:"created_by,omitempty"`
-	EntityClass string `json:"entity_class,omitempty"`
-	User string `json:"user,omitempty"`
-	Subscriptions []string `json:"subscriptions,omitempty"`
-	Deregister string `json:"deregister,omitempty"`
-	Deregistration Deregistration `json:"deregistration,omitempty"`
-	Redact []string `json:"redact"`
-	KeepaliveHandler string `json:"keepalive_handler,omitempty"`
+	Labels           map[string]string `json:"labels,omitempty"`
+	Annotations      map[string]string `json:"annotations,omitempty"`
+	CreatedBy        string            `json:"created_by,omitempty"`
+	EntityClass      string            `json:"entity_class,omitempty"`
+	User             string            `json:"user,omitempty"`
+	Subscriptions    []string          `json:"subscriptions,omitempty"`
+	Deregister       string            `json:"deregister,omitempty"`
+	Deregistration   Deregistration    `json:"deregistration,omitempty"`
+	Redact           []string          `json:"redact"`
+	KeepaliveHandler string            `json:"keepalive_handler,omitempty"`
 }
 
 var (
@@ -64,7 +65,7 @@ var (
 			Path:      "api-url",
 			Env:       "SENSU_API_URL",
 			Argument:  "api-url",
-			Shorthand: "",
+			Shorthand: "a",
 			Default:   "http://127.0.0.1:8080",
 			Usage:     "Sensu API URL",
 			Value:     &plugin.ApiUrl,
@@ -73,7 +74,7 @@ var (
 			Path:      "api-key",
 			Env:       "SENSU_API_KEY",
 			Argument:  "api-key",
-			Shorthand: "",
+			Shorthand: "k",
 			Default:   "",
 			Secret:    true,
 			Usage:     "Sensu API Key",
@@ -83,7 +84,7 @@ var (
 			Path:      "access-token",
 			Env:       "SENSU_ACCESS_TOKEN",
 			Argument:  "access-token",
-			Shorthand: "",
+			Shorthand: "t",
 			Default:   "",
 			Secret:    true,
 			Usage:     "Sensu Access Token",
@@ -93,17 +94,26 @@ var (
 			Path:      "trusted-ca-file",
 			Env:       "SENSU_TRUSTED_CA_FILE",
 			Argument:  "trusted-ca-file",
-			Shorthand: "",
+			Shorthand: "c",
 			Default:   "",
 			Usage:     "Sensu Trusted Certificate Authority file",
 			Value:     &plugin.TrustedCaFile,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "",
+			Env:       "",
+			Argument:  "add-subscriptions",
+			Shorthand: "",
+			Default:   false,
+			Usage:     "Checks event.Check.Output for a newline-separated list of subscriptions to add",
+			Value:     &plugin.AddSubscriptions,
 		},
 		&sensu.PluginConfigOption{
 			Path:      "patch/subscriptions",
 			Env:       "",
 			Argument:  "",
 			Shorthand: "",
-			Default:   "",
+			Default:   []string{},
 			Usage:     "Sensu Entity Subscriptions",
 			Value:     &plugin.Subscriptions,
 		},
@@ -154,8 +164,13 @@ func checkArgs(event *types.Event) error {
 	if len(os.Getenv("SENSU_API_URL")) > 0 {
 		plugin.ApiUrl = os.Getenv("SENSU_API_URL")
 	}
-	if (len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0) {
-		plugin.Subscriptions = event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]
+	if plugin.AddSubscriptions {
+		plugin.Subscriptions = strings.Split(event.Check.Output,"\n")
+		fmt.Printf("Added %v subscriptions from event.Check.Output\n", len(plugin.Subscriptions))
+	}
+	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0 {
+		plugin.Subscriptions = strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"],",")
+		fmt.Printf("Added %v subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n", len(plugin.Subscriptions))
 	}
 	return nil
 }
@@ -199,8 +214,8 @@ func initHTTPClient() *http.Client {
 }
 
 func indexOf(s []string, k string) int {
-	for i,v := range s {
-		if (v == k) {
+	for i, v := range s {
+		if v == k {
 			return i
 		}
 	}
@@ -208,8 +223,8 @@ func indexOf(s []string, k string) int {
 }
 
 func mergeSlices(a []string, b []string) []string {
-	for _,v := range b {
-		if (indexOf(a,v) < 0) {
+	for _, v := range b {
+		if indexOf(a, v) < 0 {
 			a = append(a, v)
 		}
 	}
@@ -220,25 +235,22 @@ func patchEntity(event *types.Event) *EntityPatch {
 	entity := new(EntityPatch)
 
 	// Merge subscriptions
-	var newSubs []string
-	if (len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0) {
-		newSubs = strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ",")
+	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0 {
+		plugin.Subscriptions = strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ",")
 	}
-	entity.Subscriptions = mergeSlices(event.Entity.Subscriptions, newSubs)
+	entity.Subscriptions = mergeSlices(event.Entity.Subscriptions, plugin.Subscriptions)
 
 	return entity
 }
 
 func executeHandler(event *types.Event) error {
 	data := patchEntity(event)
-	fmt.Printf("PatchEntity Subscriptions: %s\n", data.Subscriptions)
 	postBody, err := json.Marshal(data)
 	if err != nil {
 		log.Fatalf("ERROR: %s\n", err)
 		return err
 	}
 	body := bytes.NewReader(postBody)
-	fmt.Printf("\n%s\n",body)
 	req, err := http.NewRequest(
 		"PATCH",
 		fmt.Sprintf("%s/api/core/v2/namespaces/%s/entities/%s",
