@@ -292,5 +292,4 @@ func executeHandler(event *types.Event) error {
 		fmt.Printf("%s\n", string(b))
 		return nil
 	}
-	return nil
 }
