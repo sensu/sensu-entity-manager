@@ -11,7 +11,7 @@
 - [Configuration](#configuration)
   - [Asset registration](#asset-registration)
   - [Handler definition](#handler-definition)
-  - [Annotations](#annotations)
+  - [Supported Annotations](#supported-annotations)
 - [Installation from source](#installation-from-source)
 - [Additional notes](#additional-notes)
 - [Contributing](#contributing)
@@ -68,12 +68,25 @@ type: Handler
 api_version: core/v2
 metadata:
   name: sensu-entity-manager
-  namespace: default
 spec:
-  command: sensu-entity-manager --example example_arg
   type: pipe
+  command: >- 
+    sensu-entity-manager 
+    --add-subscriptions
+  timeout: 5
   runtime_assets:
-  - calebhailey/sensu-entity-manager
+  - calebhailey/sensu-entity-manager:0.1.1
+  secrets:
+  - name: SENSU_API_KEY
+    secret: entity-manager-api-key
+---
+type: Secret
+api_version: secrets/v1
+metadata:
+  name: entity-manager-api-key
+spec: 
+  provider: env
+  id: SENSU_ENTITY_MANAGER_API_KEY
 ```
 
 #### Proxy Support
@@ -83,10 +96,28 @@ HTTPS_PROXY, and NO_PROXY (or the lowercase versions thereof). HTTPS_PROXY takes
 precedence over HTTP_PROXY for https requests.  The environment values may be
 either a complete URL or a "host[:port]", in which case the "http" scheme is assumed.
 
-### Annotations
+### Supported Annotations 
 
-All arguments for this handler are tunable on a per entity or check basis based on annotations.  The
-annotations keyspace for this handler is `sensu.io/plugins/sensu-entity-manager/config`.
+The following _event-scoped annotations_ are supported. 
+
+- `sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions`
+
+  Comma-separated list of subscriptions to add (e.g. `nginx,http-service`). 
+
+- `sensu.io/plugins/sensu-entity-manager/config/patch/labels`
+
+  Comma-separated list of key=value pairs to add (e.g. `region=us-west-1,app=example`).
+
+- `sensu.io/plugins/sensu-entity-manager/config/patch/annotations`
+
+  Semicolon-separated list of key=value pairs to add (e.g. 
+  `scrape_config="{\"ports\": [9091,9093]}";service_account=sensu`). 
+
+> _NOTE: event-scoped annotations are set at the root-level of the event 
+> (i.e. `event.Annotations`). Entity-scoped (`event.Entity.Annotations`) and 
+> Check-scoped (`event.Check.Annotations`) annotations are currently not 
+> supported._
+
 
 #### Examples
 
@@ -113,7 +144,13 @@ From the local path of the sensu-entity-manager repository:
 go build
 ```
 
-## Additional notes
+## Roadmap
+
+- [x] Add support for adding/modifying entity subscriptions
+- [ ] Add support for adding/modifying entity labels  
+- [ ] Add support for adding/modifying entity annotations  
+- [ ] Add support for modifying other [entity-patchable fields][11] (e.g. 
+      `created_by`, `entity_class`, `deregister`, etc).
 
 ## Contributing
 
@@ -129,3 +166,4 @@ For more information about contributing to this plugin, see [Contributing][1].
 [8]: https://bonsai.sensu.io/
 [9]: https://github.com/sensu-community/sensu-plugin-tool
 [10]: https://docs.sensu.io/sensu-go/latest/reference/assets/
+[11]: https://docs.sensu.io/sensu-go/latest/api/entities/#update-an-entity-with-patch 

@@ -28,6 +28,8 @@ type Config struct {
 	Annotations      map[string]string
 	Subscriptions    []string
 	AddSubscriptions bool
+	AddLabels        bool
+	AddAnnotations   bool
 }
 
 // EntitySubscriptions is a partial Entity definition for use with the
@@ -39,16 +41,17 @@ type Deregistration struct {
 // EntityPatch is a shell of an Entity object for use with the
 // PATCH /entities API
 type EntityPatch struct {
-	Labels           map[string]string `json:"labels,omitempty"`
-	Annotations      map[string]string `json:"annotations,omitempty"`
-	CreatedBy        string            `json:"created_by,omitempty"`
-	EntityClass      string            `json:"entity_class,omitempty"`
-	User             string            `json:"user,omitempty"`
-	Subscriptions    []string          `json:"subscriptions,omitempty"`
-	Deregister       string            `json:"deregister,omitempty"`
-	Deregistration   Deregistration    `json:"deregistration,omitempty"`
-	Redact           []string          `json:"redact"`
-	KeepaliveHandler string            `json:"keepalive_handler,omitempty"`
+	Subscriptions []string          `json:"subscriptions,omitempty"`
+	Labels        map[string]string `json:"labels,omitempty"`
+	Annotations   map[string]string `json:"annotations,omitempty"`
+	// TBD if we want to support other Entity-patchable fields:
+	// CreatedBy        string            `json:"created_by,omitempty"`
+	// EntityClass      string            `json:"entity_class,omitempty"`
+	// User             string            `json:"user,omitempty"`
+	// Deregister       string            `json:"deregister,omitempty"`
+	// Deregistration   Deregistration    `json:"deregistration,omitempty"`
+	// Redact           []string          `json:"redact"`
+	// KeepaliveHandler string            `json:"keepalive_handler,omitempty"`
 }
 
 var (
@@ -109,6 +112,24 @@ var (
 			Value:     &plugin.AddSubscriptions,
 		},
 		&sensu.PluginConfigOption{
+			Path:      "",
+			Env:       "",
+			Argument:  "add-labels",
+			Shorthand: "",
+			Default:   false,
+			Usage:     "Checks event.Check.Output for a newline-separated list of label key=value pairs to add",
+			Value:     &plugin.AddLabels,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "",
+			Env:       "",
+			Argument:  "add-annotations",
+			Shorthand: "",
+			Default:   false,
+			Usage:     "Checks event.Check.Output for a newline-separated list of annotation key=value pairs to add",
+			Value:     &plugin.AddAnnotations,
+		},
+		&sensu.PluginConfigOption{
 			Path:      "patch/subscriptions",
 			Env:       "",
 			Argument:  "",
@@ -165,12 +186,14 @@ func checkArgs(event *types.Event) error {
 		plugin.ApiUrl = os.Getenv("SENSU_API_URL")
 	}
 	if plugin.AddSubscriptions {
-		plugin.Subscriptions = strings.Split(event.Check.Output, "\n")
-		fmt.Printf("Added %v subscriptions from event.Check.Output\n", len(plugin.Subscriptions))
+		checkOutputSubs := strings.Split(event.Check.Output, "\n")
+		plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, checkOutputSubs)
+		fmt.Printf("Added %v subscriptions from event.Check.Output\n", len(checkOutputSubs))
 	}
 	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0 {
-		plugin.Subscriptions = strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ",")
-		fmt.Printf("Added %v subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n", len(plugin.Subscriptions))
+		annotationSubs := strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ",")
+		plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, annotationSubs)
+		fmt.Printf("Added %v subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n", len(annotationSubs))
 	}
 	return nil
 }
@@ -222,7 +245,7 @@ func indexOf(s []string, k string) int {
 	return -1
 }
 
-func mergeSlices(a []string, b []string) []string {
+func mergeStringSlices(a []string, b []string) []string {
 	for _, v := range b {
 		if indexOf(a, v) < 0 {
 			a = append(a, v)
@@ -235,10 +258,7 @@ func patchEntity(event *types.Event) *EntityPatch {
 	entity := new(EntityPatch)
 
 	// Merge subscriptions
-	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0 {
-		plugin.Subscriptions = strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ",")
-	}
-	entity.Subscriptions = mergeSlices(event.Entity.Subscriptions, plugin.Subscriptions)
+	entity.Subscriptions = mergeStringSlices(event.Entity.Subscriptions, plugin.Subscriptions)
 
 	return entity
 }
