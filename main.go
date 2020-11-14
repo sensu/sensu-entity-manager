@@ -165,11 +165,11 @@ func checkArgs(event *types.Event) error {
 		plugin.ApiUrl = os.Getenv("SENSU_API_URL")
 	}
 	if plugin.AddSubscriptions {
-		plugin.Subscriptions = strings.Split(event.Check.Output,"\n")
+		plugin.Subscriptions = strings.Split(event.Check.Output, "\n")
 		fmt.Printf("Added %v subscriptions from event.Check.Output\n", len(plugin.Subscriptions))
 	}
 	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0 {
-		plugin.Subscriptions = strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"],",")
+		plugin.Subscriptions = strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ",")
 		fmt.Printf("Added %v subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n", len(plugin.Subscriptions))
 	}
 	return nil
