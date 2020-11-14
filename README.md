@@ -24,9 +24,8 @@ subscriptions) and other automation workflows.
 ## Usage examples
 
 ```
-$ ./sensu-entity-manager --help
-Event-based Sensu entity management for service-discovery (add/remove 
-subscriptions) and other automation workflows.                                     
+$ sensu-entity-manager --help
+Event-based Sensu entity management for service-discovery (add/remove subscriptions) and other automation workflows.
 
 Usage:
   sensu-entity-manager [flags]
@@ -37,11 +36,12 @@ Available Commands:
   version     Print the version number of this plugin
 
 Flags:
-      --access-token string      Sensu Access Token
-      --api-key string           Sensu API Key
-      --api-url string           Sensu API URL (default "http://127.0.0.1:8080")
+  -t, --access-token string      Sensu Access Token
+      --add-subscriptions        Checks event.Check.Output for a newline-separated list of subscriptions to add
+  -k, --api-key string           Sensu API Key
+  -a, --api-url string           Sensu API URL (default "http://127.0.0.1:8080")
   -h, --help                     help for sensu-entity-manager
-      --trusted-ca-file string   Sensu Trusted Certificate Authority file
+  -c, --trusted-ca-file string   Sensu Trusted Certificate Authority file
 
 Use "sensu-entity-manager [command] --help" for more information about a command.
 ```
