@@ -254,11 +254,21 @@ func mergeStringSlices(a []string, b []string) []string {
 	return a
 }
 
+func trimSlice(s []string) []string {
+	for _, v := range s {
+		if len(strings.TrimSpace(v)) == 0 {
+			i := indexOf(s, v)
+			s = trimSlice(append(s[:i], s[i+1:]...))
+		}
+	}
+	return s
+}
+
 func patchEntity(event *types.Event) *EntityPatch {
 	entity := new(EntityPatch)
 
 	// Merge subscriptions
-	entity.Subscriptions = mergeStringSlices(event.Entity.Subscriptions, plugin.Subscriptions)
+	entity.Subscriptions = trimSlice(mergeStringSlices(event.Entity.Subscriptions, plugin.Subscriptions))
 
 	return entity
 }
@@ -299,9 +309,6 @@ func executeHandler(event *types.Event) error {
 	} else if resp.StatusCode >= 300 {
 		log.Fatalf("ERROR: %v %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 		return err
-	} else if resp.StatusCode == 204 {
-		log.Printf("Successfully deleted entity \"%s\" from namespace \"%s\"", event.Entity.Name, event.Entity.Namespace)
-		return nil
 	} else {
 		defer resp.Body.Close()
 		b, err := ioutil.ReadAll(resp.Body)
