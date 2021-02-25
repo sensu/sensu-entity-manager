@@ -34,9 +34,9 @@ type Config struct {
 
 // EntitySubscriptions is a partial Entity definition for use with the
 // PATCH /entities API
-type Deregistration struct {
-	Handler string `json:"handler"`
-}
+// type Deregistration struct {
+//	Handler string `json:"handler"`
+// }
 
 // EntityPatch is a shell of an Entity object for use with the
 // PATCH /entities API
