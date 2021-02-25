@@ -64,7 +64,7 @@ var (
 	}
 
 	options = []*sensu.PluginConfigOption{
-		&sensu.PluginConfigOption{
+		{
 			Path:      "api-url",
 			Env:       "SENSU_API_URL",
 			Argument:  "api-url",
@@ -73,7 +73,7 @@ var (
 			Usage:     "Sensu API URL",
 			Value:     &plugin.ApiUrl,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "api-key",
 			Env:       "SENSU_API_KEY",
 			Argument:  "api-key",
@@ -83,7 +83,7 @@ var (
 			Usage:     "Sensu API Key",
 			Value:     &plugin.ApiKey,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "access-token",
 			Env:       "SENSU_ACCESS_TOKEN",
 			Argument:  "access-token",
@@ -93,7 +93,7 @@ var (
 			Usage:     "Sensu Access Token",
 			Value:     &plugin.AccessToken,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "trusted-ca-file",
 			Env:       "SENSU_TRUSTED_CA_FILE",
 			Argument:  "trusted-ca-file",
@@ -102,7 +102,7 @@ var (
 			Usage:     "Sensu Trusted Certificate Authority file",
 			Value:     &plugin.TrustedCaFile,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "",
 			Env:       "",
 			Argument:  "add-subscriptions",
@@ -111,7 +111,7 @@ var (
 			Usage:     "Checks event.Check.Output for a newline-separated list of subscriptions to add",
 			Value:     &plugin.AddSubscriptions,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "",
 			Env:       "",
 			Argument:  "add-labels",
@@ -120,7 +120,7 @@ var (
 			Usage:     "Checks event.Check.Output for a newline-separated list of label key=value pairs to add",
 			Value:     &plugin.AddLabels,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "",
 			Env:       "",
 			Argument:  "add-annotations",
@@ -129,7 +129,7 @@ var (
 			Usage:     "Checks event.Check.Output for a newline-separated list of annotation key=value pairs to add",
 			Value:     &plugin.AddAnnotations,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "patch/subscriptions",
 			Env:       "",
 			Argument:  "",
@@ -138,7 +138,7 @@ var (
 			Usage:     "Sensu Entity Subscriptions",
 			Value:     &plugin.Subscriptions,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "patch/labels",
 			Env:       "",
 			Argument:  "",
@@ -147,7 +147,7 @@ var (
 			Usage:     "Sensu Entity Labels",
 			Value:     &plugin.Labels,
 		},
-		&sensu.PluginConfigOption{
+		{
 			Path:      "patch/annotations",
 			Env:       "",
 			Argument:  "",
