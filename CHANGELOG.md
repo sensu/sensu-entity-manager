@@ -13,6 +13,7 @@ Versioning](http://semver.org/spec/v2.0.0.html).
   - Add pull_request to lint and test GitHub Actions
   - Ran gofmt on source files
   - README updates
+  - Fix linter error for dead code
 
 ## [0.0.1] - 2000-01-01
 
