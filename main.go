@@ -200,15 +200,31 @@ func checkArgs(event *types.Event) error {
 		plugin.ApiUrl = os.Getenv("SENSU_API_URL")
 	}
 	if plugin.AddSubscriptions {
+		fmt.Printf("Adding subscriptions from \"event.check.output\"\n")
 		addSubscriptions(strings.Split(event.Check.Output, "\n"))
 	}
+	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0 {
+		fmt.Printf("Adding subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n")
+		addSubscriptions(strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ","))
+	}
 	if plugin.AddLabels {
+		fmt.Printf("Adding labels from \"event.check.output\"\n")
 		addLabels(strings.Split(event.Check.Output, "\n"))
 	}
+	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/labels"]) > 0 {
+		fmt.Printf("Adding labels from the \"sensu.io/plugins/sensu-entity-manager/config/patch/labels\" event annotation\n")
+		addLabels(strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/labels"], ","))
+	}
 	if plugin.AddAnnotations {
+		fmt.Printf("Adding annotations from \"event.check.output\"\n")
 		addAnnotations(strings.Split(event.Check.Output, "\n"))
 	}
+	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/annotations"]) > 0 {
+		fmt.Printf("Adding annotations from the \"sensu.io/plugins/sensu-entity-manager/config/patch/annotations\" event annotation\n")
+		addAnnotations(strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/annotations"], ","))
+	}
 	if plugin.AddAll {
+		fmt.Printf("Adding entity properties from \"event.check.output\"\n")
 		parseCommands(strings.Split(event.Check.Output, "\n"))
 	}
 	return nil
@@ -311,7 +327,11 @@ func parseKvStringSlice(s []string) map[string]string {
 		if len(i) > 1 {
 			k := strings.TrimSpace(i[0])
 			v := strings.TrimSpace(i[1])
-			m[k] = v
+			if len(strings.Split(k, " ")) > 1 {
+				fmt.Printf("WARNING: invalid key name: \"%s\" (did you mean to use --add-all?)\n", k)
+			} else {
+				m[k] = v
+			}
 		}
 	}
 	return m
@@ -353,17 +373,22 @@ func patchEntity(event *types.Event) *EntityPatch {
 // Parse commands
 func parseCommands(s []string) error {
 	for _, str := range s {
-		command := strings.TrimSpace(strings.Split(str, " ")[0])
-		argument := strings.TrimSpace(strings.Split(str, " ")[1])
-		switch command {
-		case "add-subscription":
-			addSubscriptions([]string{argument})
-		case "add-label":
-			addLabels([]string{argument})
-		case "add-annotation":
-			addAnnotations([]string{argument})
-		default:
-			fmt.Printf("WARNING: nothing to do for command: \"%v\" (argument: \"%s\").\n", command, argument)
+		instructions := strings.Split(str, " ")
+		if len(instructions) < 2 {
+			fmt.Printf("WARNING: invalid command: \"%s\"\n", str)
+		} else {
+			command := strings.TrimSpace(instructions[0])
+			argument := strings.TrimSpace(instructions[1])
+			switch command {
+			case "add-subscription":
+				addSubscriptions([]string{argument})
+			case "add-label":
+				addLabels([]string{argument})
+			case "add-annotation":
+				addAnnotations([]string{argument})
+			default:
+				fmt.Printf("WARNING: nothing to do for command: \"%v\" (argument: \"%s\").\n", command, argument)
+			}
 		}
 	}
 	return nil
