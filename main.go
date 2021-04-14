@@ -38,12 +38,16 @@ type Config struct {
 //	Handler string `json:"handler"`
 // }
 
+type ObjectMeta struct {
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
 // EntityPatch is a shell of an Entity object for use with the
 // PATCH /entities API
 type EntityPatch struct {
-	Subscriptions []string          `json:"subscriptions,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty"`
-	Annotations   map[string]string `json:"annotations,omitempty"`
+	Subscriptions []string   `json:"subscriptions,omitempty"`
+	Metadata      ObjectMeta `json:"metadata,omitempty"`
 	// TBD if we want to support other Entity-patchable fields:
 	// CreatedBy        string            `json:"created_by,omitempty"`
 	// EntityClass      string            `json:"entity_class,omitempty"`
@@ -195,6 +199,10 @@ func checkArgs(event *types.Event) error {
 		plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, annotationSubs)
 		fmt.Printf("Added %v subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n", len(annotationSubs))
 	}
+	if plugin.AddLabels {
+		checkOutputLabels := strings.Split(event.Check.Output, "\n")
+		plugin.Labels = parseKvStringSlice(checkOutputLabels)
+	}
 	return nil
 }
 
@@ -245,6 +253,32 @@ func indexOf(s []string, k string) int {
 	return -1
 }
 
+// Parse a slice of strings containing key=value pairs
+func parseKvStringSlice(s []string) map[string]string {
+	var m = make(map[string]string)
+	for _, kvString := range s {
+		i := strings.Split(kvString, "=")
+		if len(i) > 1 {
+			k := strings.TrimSpace(i[0])
+			v := strings.TrimSpace(i[1])
+			m[k] = v
+		}
+	}
+	return m
+}
+
+// Merge two map[string]string objects
+// NOTE: this is a potentially destructive method (values may be overwritten)
+func mergeMapStringStrings(a map[string]string, b map[string]string) map[string]string {
+	if a == nil {
+		fmt.Errorf("Error: no entity labels; %v", a)
+	}
+	for k, v := range b {
+		a[k] = v
+	}
+	return a
+}
+
 func mergeStringSlices(a []string, b []string) []string {
 	for _, v := range b {
 		if indexOf(a, v) < 0 {
@@ -269,6 +303,15 @@ func patchEntity(event *types.Event) *EntityPatch {
 
 	// Merge subscriptions
 	entity.Subscriptions = trimSlice(mergeStringSlices(event.Entity.Subscriptions, plugin.Subscriptions))
+
+	// Init Metadata
+	entity.Metadata = ObjectMeta{}
+
+	// Merge labels
+	entity.Metadata.Labels = mergeMapStringStrings(event.Entity.Labels, plugin.Labels)
+
+	// Merge annotations
+	entity.Metadata.Annotations = mergeMapStringStrings(event.Entity.Annotations, plugin.Annotations)
 
 	return entity
 }
