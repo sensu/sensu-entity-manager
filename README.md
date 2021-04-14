@@ -20,7 +20,31 @@
 
 ## Overview
 
-Event-based Sensu entity management for service-discovery (add/remove subscriptions) and other automation workflows.
+Event-based Sensu entity management for automated service-discovery (add/remove subscriptions) and other automation workflows.
+The Sensu Entity Manager works with any check plugin or event producer that generates one instruction per line in any of the following formats:
+
+- **Subscriptions (one string per line):**
+
+  ```
+  system/linux
+  postgres
+  ```
+
+- **Labels and Annotations (one `key=value` pair per line):**
+
+  ```
+  region=us-west-2
+  application_id=1001
+  ```
+
+- **Commands (one space-separated `command argument` pair per line):**
+
+  ```
+  add-subscription system/linux
+  add-subscription postgres
+  add-label region=us-west-2
+  add-annotation application_id=1001
+  ```
 
 ## Usage examples
 
