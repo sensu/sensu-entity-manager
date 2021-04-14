@@ -30,6 +30,7 @@ type Config struct {
 	AddSubscriptions bool
 	AddLabels        bool
 	AddAnnotations   bool
+	AddAll           bool
 }
 
 // EntitySubscriptions is a partial Entity definition for use with the
@@ -134,6 +135,15 @@ var (
 			Value:     &plugin.AddAnnotations,
 		},
 		{
+			Path:      "",
+			Env:       "",
+			Argument:  "add-all",
+			Shorthand: "",
+			Default:   false,
+			Usage:     "Checks event.Check.Output for a newline-separated list of entity management commands to execute",
+			Value:     &plugin.AddAll,
+		},
+		{
 			Path:      "patch/subscriptions",
 			Env:       "",
 			Argument:  "",
@@ -190,18 +200,16 @@ func checkArgs(event *types.Event) error {
 		plugin.ApiUrl = os.Getenv("SENSU_API_URL")
 	}
 	if plugin.AddSubscriptions {
-		checkOutputSubs := strings.Split(event.Check.Output, "\n")
-		plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, checkOutputSubs)
-		fmt.Printf("Added %v subscriptions from event.Check.Output\n", len(checkOutputSubs))
-	}
-	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0 {
-		annotationSubs := strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ",")
-		plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, annotationSubs)
-		fmt.Printf("Added %v subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n", len(annotationSubs))
+		addSubscriptions(strings.Split(event.Check.Output, "\n"))
 	}
 	if plugin.AddLabels {
-		checkOutputLabels := strings.Split(event.Check.Output, "\n")
-		plugin.Labels = parseKvStringSlice(checkOutputLabels)
+		addLabels(strings.Split(event.Check.Output, "\n"))
+	}
+	if plugin.AddAnnotations {
+		addAnnotations(strings.Split(event.Check.Output, "\n"))
+	}
+	if plugin.AddAll {
+		parseCommands(strings.Split(event.Check.Output, "\n"))
 	}
 	return nil
 }
@@ -244,6 +252,7 @@ func initHTTPClient() *http.Client {
 	return client
 }
 
+// Return the index location of a string in a []string
 func indexOf(s []string, k string) int {
 	for i, v := range s {
 		if v == k {
@@ -253,18 +262,14 @@ func indexOf(s []string, k string) int {
 	return -1
 }
 
-// Parse a slice of strings containing key=value pairs
-func parseKvStringSlice(s []string) map[string]string {
-	var m = make(map[string]string)
-	for _, kvString := range s {
-		i := strings.Split(kvString, "=")
-		if len(i) > 1 {
-			k := strings.TrimSpace(i[0])
-			v := strings.TrimSpace(i[1])
-			m[k] = v
+// Same as indexOf but return a bool
+func contains(s []string, k string) bool {
+	for _, v := range s {
+		if v == k {
+			return true
 		}
 	}
-	return m
+	return false
 }
 
 // Merge two map[string]string objects
@@ -298,6 +303,35 @@ func trimSlice(s []string) []string {
 	return s
 }
 
+// Parse a slice of strings containing key=value pairs
+func parseKvStringSlice(s []string) map[string]string {
+	var m = make(map[string]string)
+	for _, kvString := range s {
+		i := strings.Split(kvString, "=")
+		if len(i) > 1 {
+			k := strings.TrimSpace(i[0])
+			v := strings.TrimSpace(i[1])
+			m[k] = v
+		}
+	}
+	return m
+}
+
+func addSubscriptions(subs []string) error {
+	plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, subs)
+	return nil
+}
+
+func addLabels(labels []string) error {
+	plugin.Labels = parseKvStringSlice(labels)
+	return nil
+}
+
+func addAnnotations(annotations []string) error {
+	plugin.Annotations = parseKvStringSlice(annotations)
+	return nil
+}
+
 func patchEntity(event *types.Event) *EntityPatch {
 	entity := new(EntityPatch)
 
@@ -314,6 +348,25 @@ func patchEntity(event *types.Event) *EntityPatch {
 	entity.Metadata.Annotations = mergeMapStringStrings(event.Entity.Annotations, plugin.Annotations)
 
 	return entity
+}
+
+// Parse commands
+func parseCommands(s []string) error {
+	for _, str := range s {
+		command := strings.TrimSpace(strings.Split(str, " ")[0])
+		argument := strings.TrimSpace(strings.Split(str, " ")[1])
+		switch command {
+		case "add-subscription":
+			addSubscriptions([]string{argument})
+		case "add-label":
+			addLabels([]string{argument})
+		case "add-annotation":
+			addAnnotations([]string{argument})
+		default:
+			fmt.Printf("WARNING: nothing to do for command: \"%v\" (argument: \"%s\").\n", command, argument)
+		}
+	}
+	return nil
 }
 
 func executeHandler(event *types.Event) error {
