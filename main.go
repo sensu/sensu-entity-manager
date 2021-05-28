@@ -30,6 +30,7 @@ type Config struct {
 	AddSubscriptions bool
 	AddLabels        bool
 	AddAnnotations   bool
+	AddAll           bool
 }
 
 // EntitySubscriptions is a partial Entity definition for use with the
@@ -37,13 +38,16 @@ type Config struct {
 // type Deregistration struct {
 //	Handler string `json:"handler"`
 // }
+type ObjectMeta struct {
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
 
 // EntityPatch is a shell of an Entity object for use with the
 // PATCH /entities API
 type EntityPatch struct {
-	Subscriptions []string          `json:"subscriptions,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty"`
-	Annotations   map[string]string `json:"annotations,omitempty"`
+	Subscriptions []string   `json:"subscriptions,omitempty"`
+	Metadata      ObjectMeta `json:"metadata,omitempty"`
 	// TBD if we want to support other Entity-patchable fields:
 	// CreatedBy        string            `json:"created_by,omitempty"`
 	// EntityClass      string            `json:"entity_class,omitempty"`
@@ -130,31 +134,13 @@ var (
 			Value:     &plugin.AddAnnotations,
 		},
 		{
-			Path:      "patch/subscriptions",
+			Path:      "",
 			Env:       "",
-			Argument:  "",
+			Argument:  "add-all",
 			Shorthand: "",
-			Default:   []string{},
-			Usage:     "Sensu Entity Subscriptions",
-			Value:     &plugin.Subscriptions,
-		},
-		{
-			Path:      "patch/labels",
-			Env:       "",
-			Argument:  "",
-			Shorthand: "",
-			Default:   "",
-			Usage:     "Sensu Entity Labels",
-			Value:     &plugin.Labels,
-		},
-		{
-			Path:      "patch/annotations",
-			Env:       "",
-			Argument:  "",
-			Shorthand: "",
-			Default:   "",
-			Usage:     "Sensu Entity Annotations",
-			Value:     &plugin.Annotations,
+			Default:   false,
+			Usage:     "Checks event.Check.Output for a newline-separated list of entity management commands to execute",
+			Value:     &plugin.AddAll,
 		},
 	}
 )
@@ -186,14 +172,32 @@ func checkArgs(event *types.Event) error {
 		plugin.ApiUrl = os.Getenv("SENSU_API_URL")
 	}
 	if plugin.AddSubscriptions {
-		checkOutputSubs := strings.Split(event.Check.Output, "\n")
-		plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, checkOutputSubs)
-		fmt.Printf("Added %v subscriptions from event.Check.Output\n", len(checkOutputSubs))
+		fmt.Printf("Adding subscriptions from \"event.check.output\"\n")
+		addSubscriptions(strings.Split(event.Check.Output, "\n"))
 	}
 	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"]) > 0 {
-		annotationSubs := strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ",")
-		plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, annotationSubs)
-		fmt.Printf("Added %v subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n", len(annotationSubs))
+		fmt.Printf("Adding subscriptions from the \"sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions\" event annotation\n")
+		addSubscriptions(strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions"], ","))
+	}
+	if plugin.AddLabels {
+		fmt.Printf("Adding labels from \"event.check.output\"\n")
+		addLabels(strings.Split(event.Check.Output, "\n"))
+	}
+	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/labels"]) > 0 {
+		fmt.Printf("Adding labels from the \"sensu.io/plugins/sensu-entity-manager/config/patch/labels\" event annotation\n")
+		addLabels(strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/labels"], ","))
+	}
+	if plugin.AddAnnotations {
+		fmt.Printf("Adding annotations from \"event.check.output\"\n")
+		addAnnotations(strings.Split(event.Check.Output, "\n"))
+	}
+	if len(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/annotations"]) > 0 {
+		fmt.Printf("Adding annotations from the \"sensu.io/plugins/sensu-entity-manager/config/patch/annotations\" event annotation\n")
+		addAnnotations(strings.Split(event.Annotations["sensu.io/plugins/sensu-entity-manager/config/patch/annotations"], ","))
+	}
+	if plugin.AddAll {
+		fmt.Printf("Adding entity properties from \"event.check.output\"\n")
+		parseCommands(strings.Split(event.Check.Output, "\n"))
 	}
 	return nil
 }
@@ -236,6 +240,7 @@ func initHTTPClient() *http.Client {
 	return client
 }
 
+// Return the index location of a string in a []string
 func indexOf(s []string, k string) int {
 	for i, v := range s {
 		if v == k {
@@ -243,6 +248,18 @@ func indexOf(s []string, k string) int {
 		}
 	}
 	return -1
+}
+
+// Merge two map[string]string objects
+// NOTE: this is a potentially destructive method (values may be overwritten)
+func mergeMapStringStrings(a map[string]string, b map[string]string) map[string]string {
+	if a == nil {
+		fmt.Printf("Error: no entity labels; %v", a)
+	}
+	for k, v := range b {
+		a[k] = v
+	}
+	return a
 }
 
 func mergeStringSlices(a []string, b []string) []string {
@@ -264,13 +281,75 @@ func trimSlice(s []string) []string {
 	return s
 }
 
+// Parse a slice of strings containing key=value pairs
+func parseKvStringSlice(s []string) map[string]string {
+	var m = make(map[string]string)
+	for _, kvString := range s {
+		i := strings.Split(kvString, "=")
+		if len(i) > 1 {
+			k := strings.TrimSpace(i[0])
+			v := strings.TrimSpace(i[1])
+			if len(strings.Split(k, " ")) > 1 {
+				fmt.Printf("WARNING: invalid key name: \"%s\" (did you mean to use --add-all?)\n", k)
+			} else {
+				m[k] = v
+			}
+		}
+	}
+	return m
+}
+
+func addSubscriptions(subs []string) {
+	plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, subs)
+}
+
+func addLabels(labels []string) {
+	plugin.Labels = parseKvStringSlice(labels)
+}
+
+func addAnnotations(annotations []string) {
+	plugin.Annotations = parseKvStringSlice(annotations)
+}
+
 func patchEntity(event *types.Event) *EntityPatch {
 	entity := new(EntityPatch)
 
 	// Merge subscriptions
 	entity.Subscriptions = trimSlice(mergeStringSlices(event.Entity.Subscriptions, plugin.Subscriptions))
 
+	// Init Metadata
+	entity.Metadata = ObjectMeta{}
+
+	// Merge labels
+	entity.Metadata.Labels = mergeMapStringStrings(event.Entity.Labels, plugin.Labels)
+
+	// Merge annotations
+	entity.Metadata.Annotations = mergeMapStringStrings(event.Entity.Annotations, plugin.Annotations)
+
 	return entity
+}
+
+// Parse commands
+func parseCommands(s []string) {
+	for _, str := range s {
+		instructions := strings.Split(str, " ")
+		if len(instructions) < 2 {
+			fmt.Printf("WARNING: invalid command: \"%s\"\n", str)
+		} else {
+			command := strings.TrimSpace(instructions[0])
+			argument := strings.TrimSpace(instructions[1])
+			switch command {
+			case "add-subscription":
+				addSubscriptions([]string{argument})
+			case "add-label":
+				addLabels([]string{argument})
+			case "add-annotation":
+				addAnnotations([]string{argument})
+			default:
+				fmt.Printf("WARNING: nothing to do for command: \"%v\" (argument: \"%s\").\n", command, argument)
+			}
+		}
+	}
 }
 
 func executeHandler(event *types.Event) error {
