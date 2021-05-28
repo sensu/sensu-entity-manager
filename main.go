@@ -38,7 +38,6 @@ type Config struct {
 // type Deregistration struct {
 //	Handler string `json:"handler"`
 // }
-
 type ObjectMeta struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
@@ -142,33 +141,6 @@ var (
 			Default:   false,
 			Usage:     "Checks event.Check.Output for a newline-separated list of entity management commands to execute",
 			Value:     &plugin.AddAll,
-		},
-		{
-			Path:      "patch/subscriptions",
-			Env:       "",
-			Argument:  "",
-			Shorthand: "",
-			Default:   []string{},
-			Usage:     "Sensu Entity Subscriptions",
-			Value:     &plugin.Subscriptions,
-		},
-		{
-			Path:      "patch/labels",
-			Env:       "",
-			Argument:  "",
-			Shorthand: "",
-			Default:   "",
-			Usage:     "Sensu Entity Labels",
-			Value:     &plugin.Labels,
-		},
-		{
-			Path:      "patch/annotations",
-			Env:       "",
-			Argument:  "",
-			Shorthand: "",
-			Default:   "",
-			Usage:     "Sensu Entity Annotations",
-			Value:     &plugin.Annotations,
 		},
 	}
 )
