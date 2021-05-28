@@ -21,29 +21,149 @@
 ## Overview
 
 Event-based Sensu entity management for automated service-discovery (add/remove subscriptions) and other automation workflows.
-The Sensu Entity Manager works with any check plugin or event producer that generates one instruction per line in any of the following formats:
+The Sensu Entity Manager works with any check plugin or event producer that generates one instruction per line of `event.check.output` in any of the following formats:
 
 - **Subscriptions (one string per line):**
+
+  Example check output:
 
   ```
   system/linux
   postgres
   ```
-
+  
+  Example event payload:
+  
+  ```json
+  {
+    "metadata": {},
+    "entity": {},
+    "check": {
+      "metadata": {
+        "name": "example",
+        "labels": {},
+        "metadata": {}
+      },
+      "handlers": [
+        "subscription-manager"
+      ],
+      "output": "system/linux\npostgres",
+      "status": 0,
+      "...": "..."
+    },
+    "metrics": {},
+    "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "timestamp": 1234567890
+  }
+  ```
+  
+  Example handler definition: 
+  
+  ```yaml
+  ---
+  type: Handler
+  api_version: core/v2
+  metadata:
+    name: subscription-manager
+  spec:
+    command: sensu-entity-manager --add-subscriptions
+    ...: ...
+  ```
+  
 - **Labels and Annotations (one `key=value` pair per line):**
+
+  Example check output:
 
   ```
   region=us-west-2
   application_id=1001
   ```
-
+  
+  Example event payload:
+  
+  ```json
+  {
+    "metadata": {},
+    "entity": {},
+    "check": {
+      "metadata": {
+        "name": "example",
+        "labels": {},
+        "metadata": {}
+      },
+      "handlers": [
+        "label-manager"
+      ],
+      "output": "region=us-west-2\napplication_id=1001",
+      "status": 0,
+      "...": "..."
+    },
+    "metrics": {},
+    "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "timestamp": 1234567890
+  }
+  ```
+  
+  Example handler definition: 
+  
+  ```yaml
+  ---
+  type: Handler
+  api_version: core/v2
+  metadata:
+    name: label-manager
+  spec:
+    command: sensu-entity-manager --add-labels
+    ...: ...
+  ```
+  
 - **Commands (one space-separated `command argument` pair per line):**
+
+  Example check output:
 
   ```
   add-subscription system/linux
   add-subscription postgres
   add-label region=us-west-2
   add-annotation application_id=1001
+  ```
+  
+  Example event payload:
+  
+  ```json
+  {
+    "metadata": {},
+    "entity": {},
+    "check": {
+      "metadata": {
+        "name": "example",
+        "labels": {},
+        "metadata": {}
+      },
+      "handlers": [
+        "entity-manager"
+      ],
+      "output": "add-subscription system/linux\nadd-subscription postgres\nadd-label region=us-west-2\nadd-annotation application_id=1001",
+      "status": 0,
+      "...": "..."
+    },
+    "metrics": {},
+    "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "timestamp": 1234567890
+  }
+  ```
+  
+  Example handler definition: 
+  
+  ```yaml
+  ---
+  type: Handler
+  api_version: core/v2
+  metadata:
+    name: entity-manager
+  spec:
+    command: sensu-entity-manager --add-all
+    ...: ...
   ```
 
 ## Usage examples
