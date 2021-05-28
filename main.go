@@ -278,21 +278,11 @@ func indexOf(s []string, k string) int {
 	return -1
 }
 
-// Same as indexOf but return a bool
-func contains(s []string, k string) bool {
-	for _, v := range s {
-		if v == k {
-			return true
-		}
-	}
-	return false
-}
-
 // Merge two map[string]string objects
 // NOTE: this is a potentially destructive method (values may be overwritten)
 func mergeMapStringStrings(a map[string]string, b map[string]string) map[string]string {
 	if a == nil {
-		fmt.Errorf("Error: no entity labels; %v", a)
+		fmt.Printf("Error: no entity labels; %v", a)
 	}
 	for k, v := range b {
 		a[k] = v
@@ -337,19 +327,16 @@ func parseKvStringSlice(s []string) map[string]string {
 	return m
 }
 
-func addSubscriptions(subs []string) error {
+func addSubscriptions(subs []string) {
 	plugin.Subscriptions = mergeStringSlices(plugin.Subscriptions, subs)
-	return nil
 }
 
-func addLabels(labels []string) error {
+func addLabels(labels []string) {
 	plugin.Labels = parseKvStringSlice(labels)
-	return nil
 }
 
-func addAnnotations(annotations []string) error {
+func addAnnotations(annotations []string) {
 	plugin.Annotations = parseKvStringSlice(annotations)
-	return nil
 }
 
 func patchEntity(event *types.Event) *EntityPatch {
@@ -371,7 +358,7 @@ func patchEntity(event *types.Event) *EntityPatch {
 }
 
 // Parse commands
-func parseCommands(s []string) error {
+func parseCommands(s []string) {
 	for _, str := range s {
 		instructions := strings.Split(str, " ")
 		if len(instructions) < 2 {
@@ -391,7 +378,6 @@ func parseCommands(s []string) error {
 			}
 		}
 	}
-	return nil
 }
 
 func executeHandler(event *types.Event) error {
