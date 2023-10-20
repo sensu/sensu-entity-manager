@@ -25,6 +25,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - The `sensu.io/plugins/sensu-entity-manager/config/patch/annotations` and `sensu.io/plugins/sensu-entity-manager/config/patch/subscriptions` annotations are now supported.
   These were documented in the README previously but there were never implemented.
 
+- Implemented a fix for --add-all attribute to enable support for multiple add-label commands
+  and multiple add-annotation commands
+
 ### Changed
 
 - Q1 '21 handler maintenance:

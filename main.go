@@ -331,6 +331,8 @@ func patchEntity(event *types.Event) *EntityPatch {
 
 // Parse commands
 func parseCommands(s []string) {
+	var totalLabels []string
+	var totalAnnotations []string
 	for _, str := range s {
 		instructions := strings.Split(str, " ")
 		if len(instructions) < 2 {
@@ -342,13 +344,19 @@ func parseCommands(s []string) {
 			case "add-subscription":
 				addSubscriptions([]string{argument})
 			case "add-label":
-				addLabels([]string{argument})
+				totalLabels = append(totalLabels, argument)
 			case "add-annotation":
-				addAnnotations([]string{argument})
+				totalAnnotations = append(totalAnnotations, argument)
 			default:
 				fmt.Printf("WARNING: nothing to do for command: \"%v\" (argument: \"%s\").\n", command, argument)
 			}
 		}
+	}
+	if len(totalLabels) > 0 {
+		addLabels(totalLabels)
+	}
+	if len(totalAnnotations) > 0 {
+		addAnnotations(totalAnnotations)
 	}
 }
 
