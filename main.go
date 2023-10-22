@@ -304,11 +304,21 @@ func addSubscriptions(subs []string) {
 }
 
 func addLabels(labels []string) {
-	plugin.Labels = parseKvStringSlice(labels)
+	if len(plugin.Labels) == 0 {
+		plugin.Labels = parseKvStringSlice(labels)
+	} else {
+		newLabels := parseKvStringSlice(labels)
+		plugin.Labels = mergeMapStringStrings(plugin.Labels, newLabels)
+	}
 }
 
 func addAnnotations(annotations []string) {
-	plugin.Annotations = parseKvStringSlice(annotations)
+	if len(plugin.Annotations) == 0 {
+		plugin.Annotations = parseKvStringSlice(annotations)
+	} else {
+		newAnnotations = parseKvStringSlice(annotations)
+		plugin.Annotations = mergeMapStringStrings(plugin.Annotations, newAnnotations)
+	}
 }
 
 func patchEntity(event *types.Event) *EntityPatch {
