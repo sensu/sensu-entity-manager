@@ -316,7 +316,7 @@ func addAnnotations(annotations []string) {
 	if len(plugin.Annotations) == 0 {
 		plugin.Annotations = parseKvStringSlice(annotations)
 	} else {
-		newAnnotations = parseKvStringSlice(annotations)
+		newAnnotations := parseKvStringSlice(annotations)
 		plugin.Annotations = mergeMapStringStrings(plugin.Annotations, newAnnotations)
 	}
 }
