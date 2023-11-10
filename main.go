@@ -35,9 +35,10 @@ type Config struct {
 
 // EntitySubscriptions is a partial Entity definition for use with the
 // PATCH /entities API
-// type Deregistration struct {
-//	Handler string `json:"handler"`
-// }
+//
+//	type Deregistration struct {
+//		Handler string `json:"handler"`
+//	}
 type ObjectMeta struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
@@ -254,7 +255,7 @@ func indexOf(s []string, k string) int {
 // NOTE: this is a potentially destructive method (values may be overwritten)
 func mergeMapStringStrings(a map[string]string, b map[string]string) map[string]string {
 	if a == nil {
-		fmt.Printf("Error: no entity labels; %v", a)
+		a = make(map[string]string)
 	}
 	for k, v := range b {
 		a[k] = v
@@ -304,11 +305,11 @@ func addSubscriptions(subs []string) {
 }
 
 func addLabels(labels []string) {
-	plugin.Labels = parseKvStringSlice(labels)
+	plugin.Labels = mergeMapStringStrings(plugin.Labels, parseKvStringSlice(labels))
 }
 
 func addAnnotations(annotations []string) {
-	plugin.Annotations = parseKvStringSlice(annotations)
+	plugin.Annotations = mergeMapStringStrings(plugin.Annotations, parseKvStringSlice(annotations))
 }
 
 func patchEntity(event *types.Event) *EntityPatch {
